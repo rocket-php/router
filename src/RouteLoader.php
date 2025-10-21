@@ -18,7 +18,7 @@ use RuntimeException;
  * Route Cache Generator
  * Scans for classes with #[ApiController] attribute and generates route mappings
  */
-final class Router
+final class RouteLoader
 {
     private array $routes = [];
 
@@ -109,7 +109,7 @@ final class Router
         }
     }
 
-    public function resolve(): Router
+    public function resolve(): RouteLoader
     {
         if (!file_exists($this->cacheFile)) {
             $this->generate();
