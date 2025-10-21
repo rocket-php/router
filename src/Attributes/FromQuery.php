@@ -1,0 +1,12 @@
+<?php
+
+namespace RocketRouter\Attributes;
+
+use Attribute;
+
+#[Attribute(Attribute::TARGET_PARAMETER)]
+class FromQuery
+{
+    public function __construct(
+    ) {}
+}

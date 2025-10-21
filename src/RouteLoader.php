@@ -80,12 +80,13 @@ final class RouteLoader
                     $route = $attr->newInstance();
                     $routePath = rtrim($routePrefix, '/') . '/' . ltrim($route->route, '/');
 
-                    $this->routes[] = [
-                        'route' => $routePath,
-                        'method' => $route->method,
-                        'controller' => $class,
-                        'function' => $method->getName(),
-                    ];
+                    $this->routes[] = new RouteItem(
+                        route: $routePath,
+                        method: $route->method,
+                        controller: $class,
+                        function: $method->getName(),
+                        params: $method->getParameters(),
+                    );
                 }
             }
         }
@@ -121,8 +122,8 @@ final class RouteLoader
 
         $this->readRouteFromCacheFile();
 
-        foreach ($this->routes as $k => $route) {
-            $this->routes[$k]['controller'] = ($this->serviceLocator)($route['controller']);
+        foreach ($this->routes as $route) {
+            $this->routes['controller'] = ($this->serviceLocator)($route['controller']);
 
             if (empty($route['controller'])) {
                 throw new RuntimeException("Controller not found: {$route['controller']}");
