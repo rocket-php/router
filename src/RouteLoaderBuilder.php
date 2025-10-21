@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace RocketRouter;
 
 use Closure;
-use Composer\Autoload\ClassLoader;
 
 final class RouteLoaderBuilder
 {
@@ -15,8 +14,6 @@ final class RouteLoaderBuilder
     private ?Closure $serviceLocator = null;
 
     private ?Closure $routeRegisterer = null;
-
-    private ClassLoader $loader;
 
     public function setProjectDir(string $projectDir): RouteLoaderBuilder
     {
@@ -42,19 +39,12 @@ final class RouteLoaderBuilder
         return $this;
     }
 
-    public function setLoader(ClassLoader $loader): RouteLoaderBuilder
-    {
-        $this->loader = $loader;
-        return $this;
-    }
-
     public function build(): RouteLoader
     {
         return new RouteLoader(
             $this->projectDir,
             $this->serviceLocator,
             $this->routeRegisterer,
-            $this->loader,
             $this->cacheFile
         );
     }

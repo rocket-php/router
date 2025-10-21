@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace RocketRouter;
 
 use Closure;
-use Composer\Autoload\ClassLoader;
+use FilesystemIterator;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
@@ -13,6 +15,7 @@ use ReflectionMethod;
 use RocketRouter\Attributes\ApiController;
 use RocketRouter\Attributes\HttpMethod;
 use RuntimeException;
+use SplFileInfo;
 
 /**
  * Route Cache Generator
@@ -27,11 +30,10 @@ final class RouteLoader
     private string $cacheFile;
 
     public function __construct(
-        private string      $projectDir,
-        private Closure     $serviceLocator,
-        private Closure     $routeRegisterer,
-        private ClassLoader $loader,
-        string              $cacheFile = null
+        private string  $projectDir,
+        private Closure $serviceLocator,
+        private Closure $routeRegisterer,
+        ?string         $cacheFile = null
     )
     {
         $this->cacheFile = $cacheFile ?? $projectDir . '/' . self::ROUTE_CACHE_FILE;
@@ -53,13 +55,9 @@ final class RouteLoader
             throw new RuntimeException("Cannot create output directory: {$outputDir}");
         }
 
-        $classMap = $this->loader->getClassMap();
+        $classMap = $this->scanDirectory();
 
         foreach ($classMap as $class => $file) {
-            if (!str_starts_with($class, $this->projectDir)) {
-                continue;
-            }
-
             try {
                 $reflection = new ReflectionClass($class);
             } catch (ReflectionException $e) {
@@ -148,5 +146,133 @@ final class RouteLoader
         }
 
         $this->routes = require $this->cacheFile;
+    }
+
+    /**
+     * Scan the directory for PHP files and extract classes with ApiController attribute
+     */
+    private function scanDirectory(): array
+    {
+        $classes = [];
+        
+        if (!is_dir($this->projectDir)) {
+            return $classes;
+        }
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($this->projectDir, FilesystemIterator::SKIP_DOTS)
+        );
+
+        /** @var SplFileInfo $file */
+        foreach ($iterator as $file) {
+            if ($file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $classNames = $this->extractClassNamesFromFile($file->getPathname());
+            foreach ($classNames as $className) {
+                $classes[$className] = $file->getPathname();
+            }
+        }
+
+        return $classes;
+    }
+
+    /**
+     * Extract fully qualified class names from a PHP file
+     */
+    private function extractClassNamesFromFile(string $filePath): array
+    {
+        $content = file_get_contents($filePath);
+        if ($content === false) {
+            return [];
+        }
+
+        $classes = [];
+        $tokens = token_get_all($content);
+        $namespace = '';
+
+        foreach ($tokens as $i => $iValue) {
+            $token = $iValue;
+
+            if (is_array($token)) {
+                [$tokenType] = $token;
+
+                switch ($tokenType) {
+                    case T_NAMESPACE:
+                        $namespace = $this->extractNamespace($tokens, $i);
+                        break;
+
+                    case T_CLASS:
+                    case T_INTERFACE:
+                    case T_TRAIT:
+                        $className = $this->extractClassName($tokens, $i);
+                        if ($className) {
+                            $fullClassName = $namespace ? $namespace . '\\' . $className : $className;
+                            $classes[] = $fullClassName;
+                        }
+                        break;
+                }
+            }
+        }
+
+        return $classes;
+    }
+
+    /**
+     * Extract namespace from tokens starting at given position
+     */
+    private function extractNamespace(array $tokens, int &$position): string
+    {
+        $namespace = '';
+        $position++; // Skip T_NAMESPACE token
+
+        // Skip whitespace
+        while (isset($tokens[$position]) && is_array($tokens[$position]) && $tokens[$position][0] === T_WHITESPACE) {
+            $position++;
+        }
+
+        // Collect namespace parts
+        while (isset($tokens[$position])) {
+            $token = $tokens[$position];
+
+            if (is_array($token)) {
+                if ($token[0] === T_STRING || $token[0] === T_NS_SEPARATOR) {
+                    $namespace .= $token[1];
+                } elseif ($token[0] === T_WHITESPACE) {
+                    // Skip whitespace
+                } else {
+                    break;
+                }
+            } else {
+                if ($token === ';') {
+                    break;
+                }
+            }
+
+            $position++;
+        }
+
+        return trim($namespace);
+    }
+
+    /**
+     * Extract class name from tokens starting at given position
+     */
+    private function extractClassName(array $tokens, int &$position): string
+    {
+        $position++; // Skip T_CLASS token
+
+        // Skip whitespace
+        while (isset($tokens[$position]) && is_array($tokens[$position]) && $tokens[$position][0] === T_WHITESPACE) {
+            $position++;
+        }
+
+        // Get class name
+        if (isset($tokens[$position]) && is_array($tokens[$position]) && $tokens[$position][0] === T_STRING) {
+            return $tokens[$position][1];
+        }
+
+        return '';
     }
 }
