@@ -7,7 +7,7 @@ A PHP package for attribute-based routing with automatic route generation from c
 Install via Composer:
 
 ```bash
-composer require asker26/rocket-router
+composer require rocket-php/router
 ```
 
 ## Features
