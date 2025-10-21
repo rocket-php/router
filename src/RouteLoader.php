@@ -14,6 +14,7 @@ use ReflectionException;
 use ReflectionMethod;
 use RocketRouter\Attributes\ApiController;
 use RocketRouter\Attributes\HttpMethod;
+use RocketRouter\Attributes\Route;
 use RuntimeException;
 use SplFileInfo;
 
@@ -68,14 +69,19 @@ final class RouteLoader
                 continue;
             }
 
+            $classRoute = $reflection->getAttributes(Route::class);
+            $routePrefix = !empty($classRoute) ? $classRoute[0]->newInstance()->route : '';
+
             foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
                 foreach ($method->getAttributes(HttpMethod::class, ReflectionAttribute::IS_INSTANCEOF) as $attr) {
                     /**
                      * @var HttpMethod $route
                      */
                     $route = $attr->newInstance();
+                    $routePath = rtrim($routePrefix, '/') . '/' . ltrim($route->route, '/');
+
                     $this->routes[] = [
-                        'route' => $route->route,
+                        'route' => $routePath,
                         'method' => $route->method,
                         'controller' => $class,
                         'function' => $method->getName(),
