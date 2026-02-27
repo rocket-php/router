@@ -20,6 +20,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Example cache
+example/cache/routes.php
+
 # Environment
 .env
 .env.local

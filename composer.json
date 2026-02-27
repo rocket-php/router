@@ -30,7 +30,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "RocketRouter\\Tests\\": "tests/"
+            "RocketRouter\\Tests\\": "tests/",
+            "Example\\": "example/"
         }
     },
     "minimum-stability": "stable",
