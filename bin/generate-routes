@@ -2,7 +2,7 @@
 <?php
 
 /**
- * RocketRouter Route Generator Console Command
+ * RocketRouter Route Generator
  *
  * Usage: generate-routes <search-directory> <output-file>
  *
@@ -12,12 +12,12 @@
  */
 
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', '1');
 
 $autoloaderPaths = [
-        __DIR__ . '/../vendor/autoload.php',  // When used as dependency
-        __DIR__ . '/../../../autoload.php',   // When used in vendor/asker/rocket-router
-        __DIR__ . '/../autoload.php',         // Development
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../../autoload.php',
+    __DIR__ . '/../autoload.php',
 ];
 
 $autoloaderFound = false;
@@ -35,7 +35,8 @@ if (!$autoloaderFound) {
     exit(1);
 }
 
-use RocketRouter\RouteGenerator;
+use RocketRouter\RouteScanner;
+use RocketRouter\RouteCache;
 
 function showUsage(): void
 {
@@ -48,8 +49,6 @@ function showUsage(): void
     echo "Examples:\n";
     echo "  generate-routes ./app/Controllers ./cache/routes.php\n";
     echo "  generate-routes /path/to/controllers /path/to/routes.cache.php\n\n";
-    echo "The command will recursively scan the search directory for PHP files containing\n";
-    echo "classes with #[ApiController] attribute and generate a route cache file.\n\n";
 }
 
 function validateArguments(array $argv): array
@@ -91,20 +90,25 @@ if (in_array('--help', $argv) || in_array('-h', $argv)) {
 [$searchDirectory, $outputFile] = validateArguments(array_slice($argv, 1));
 
 try {
-    $generator = new RouteGenerator();
+    $scanner = new RouteScanner($searchDirectory);
+    $routes = $scanner->scan();
+
+    $cache = new RouteCache($outputFile);
+    $cache->write($routes);
 
     echo "RocketRouter Route Generator\n";
     echo "===========================\n\n";
     echo "Search Directory: {$searchDirectory}\n";
     echo "Output File: {$outputFile}\n\n";
 
-    $routes = $generator->generate($searchDirectory, $outputFile);
+    echo "Routes found: " . count($routes) . "\n\n";
 
-    $generator->displayRoutes();
+    foreach ($routes as $route) {
+        echo "  {$route->method}\t{$route->route}\t=> {$route->controller}::{$route->action}\n";
+    }
 
     echo "\nRoute generation completed successfully!\n";
-
 } catch (Exception $e) {
-    echo "\n Error: " . $e->getMessage() . "\n";
+    echo "Error: " . $e->getMessage() . "\n";
     exit(1);
 }

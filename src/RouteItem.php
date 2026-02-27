@@ -1,72 +1,32 @@
 <?php
 
-namespace RocketRouter;
+declare(strict_types=1);
 
-use http\Exception\RuntimeException;
-use ReflectionParameter;
-use RocketRouter\Attributes\FromBody;
-use RocketRouter\Attributes\FromQuery;
-use RocketRouter\Attributes\FromRoute;
+namespace RocketRouter;
 
 final class RouteItem
 {
     public function __construct(
-        public string $route,
-        public string $method,
-        public string $controller,
-        public string $function,
-        /**
-         * @var ReflectionParameter[]
-         */
-        public array $params
-    )
-    {
+        public readonly string $route,
+        public readonly string $method,
+        public readonly string $controller,
+        public readonly string $action,
+        /** @var RouteParam[] */
+        public readonly array $params,
+    ) {
     }
 
-    public function toWpRoute(): string
+    /**
+     * @param array<string, mixed> $data
+     */
+    public static function __set_state(array $data): self
     {
-        return preg_replace('#\{(\w+)}#', '(?P<$1>[^/]+)', $this->route);
-    }
-
-    public function resolveParameters(array $routeParms, array $jsonParams, array $queryStrParams): array
-    {
-        $params = [];
-
-        foreach ($this->params as $param) {
-            $pathParams = $param->getAttributes(FromRoute::class);
-            if (!empty($pathParams)) {
-                /** @var FromRoute $pathParam */
-                $pathParam = $pathParams[0]->newInstance();
-                $paramName = $pathParam->name ?? $param->getName();
-
-                $params[] = $routeParms[$paramName] ?? null;
-                continue;
-            }
-
-            $bodyParams = $param->getAttributes(FromBody::class);
-            if (!empty($bodyParams)) {
-                $paramType = $param->getType();
-
-                if ($paramType === null || $paramType->getName() === 'array') {
-                    $params[] = $jsonParams;
-                } elseif ( class_exists($paramType)) {
-                    throw new RuntimeException('Not implemented yet');
-                }
-                continue;
-            }
-
-            $queryParams = $param->getAttributes(FromQuery::class);
-            if (!empty($queryParams)) {
-                $paramType = $param->getType();
-
-                if ($paramType === null || $paramType->getName() === 'array') {
-                    $params[] = $queryStrParams;
-                } elseif ( class_exists($paramType)) {
-                    throw new RuntimeException('Not implemented yet');
-                }
-            }
-        }
-
-        return $params;
+        return new self(
+            route: $data['route'],
+            method: $data['method'],
+            controller: $data['controller'],
+            action: $data['action'],
+            params: $data['params'],
+        );
     }
 }
